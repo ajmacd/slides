@@ -49,17 +49,20 @@ class: center, middle
 
 ---
 
-## Simple WebRTC app stack
-
-<!-- .center[![foo](./stack150.svg)] -->
-.center[<img src="stack.svg" alt="WebRTC stack" style="width: 400px;"/>]
+## Brief architecture tour
+.center[<img src="system-architecture.svg" alt="System architecture" style="width: 650px;"/>]
 
 ---
 
-## Simple WebRTC app stack
+## WebRTC client stack
 
-<!-- .center[![foo](./stack150.svg)] -->
-.center[<img src="stack-highlight.svg" alt="WebRTC stack" style="width: 400px;"/>]
+.center[<img src="app-stack.svg" alt="WebRTC stack" style="width: 400px;"/>]
+
+---
+
+## WebRTC client stack
+
+.center[<img src="app-stack-highlight.svg" alt="WebRTC stack" style="width: 400px;"/>]
 
 ---
 
@@ -71,13 +74,26 @@ Slack Calls in the Mac native app.
 * But! No access to WebRTC.
 
 ---
+
 ## A bit of history
 
 JavaScript implementation for Chrome and C++ library were developed together.
 
-[*Diagram of application logic handled partly in UI layer. Didn't have a clear separation of concerns.*]
+.left[<img src="client-stack-desktop.svg" alt="Client stack" style="width: 480;"/>]
 
+???
 API was pretty low-level. A few methods, passing JSON messages directly from our media server.
+
+---
+
+## A bit of history
+
+JavaScript implementation for Chrome and C++ library were developed together.
+
+.left[<img src="client-stack-desktop-highlight.svg" alt="Client stack" style="width: 480;"/>]
+
+???
+This meant the application logic was spread across JS and C++.
 
 This worked fine for desktop. Our team was handling much of the development.
 
@@ -86,6 +102,10 @@ This worked fine for desktop. Our team was handling much of the development.
 ## A bit of history
 
 Trouble appeared as we expanded to mobile.
+
+.left[<img src="client-stack-mobile-then.svg" alt="Client stack" style="width: 745px;"/>]
+
+???
 * Platform developers had to reimplement domain-specific application logic.
 
 * A lot of parsing raw JSON messages from the media server.
@@ -110,7 +130,13 @@ What is the ideal cross-platform design?
 
 ---
 
-## Our approach
+## Reimagine the approach
+
+.left[<img src="client-stack-mobile-now.svg" alt="Client stack" style="width: 745px;"/>]
+
+---
+
+## Our selection
 
 Application logic in modern C++...
 * The native WebRTC libs are C++.
@@ -122,6 +148,18 @@ Application logic in modern C++...
 * Uses a simple interface definition language.
 
 * Generates cross-platform bindings for `Java` and `Obj-C` <-> `C++`.
+
+---
+
+## Alternatives we considered
+RPC frameworks
+* [Thrift](https://thrift.apache.org/)
+
+* [GRPC](http://www.grpc.io/)
+
+Offers cross-platform API generation (even JavaScript!)
+
+Isn't a great fit for the domain: not designed for running in process (maybe GRPC?).
 
 ---
 
@@ -253,22 +291,11 @@ Example project showing Djinni best practices.
 
 ---
 
-## Alternatives we considered
-RPC frameworks
-* [Thrift](https://thrift.apache.org/)
-
-* [GRPC](http://www.grpc.io/)
-
-Offers cross-platform API generation (even JavaScript!)
-
-Isn't a great fit for the domain: not designed for running in process (maybe GRPC?).
-
----
-
 ## Conceptually similar efforts
 
 [Google Web Toolkit (GWT)](http://www.gwtproject.org/) + [j2objc](http://j2objc.org/)
-* Write once in Java and transpile to JavaScript and Obj-C.
+
+Write once in Java and transpile to JavaScript and Obj-C.
 
 ---
 
@@ -298,13 +325,6 @@ We have a plan (sort of): [Emscripten](https://kripken.github.io/emscripten-site
 class: center, middle
 
 # Thanks!
-
-<!--
-.left-column[
-  ### WebRTC stack
-]
-.right-column[.center[![foo](./stack150.svg)]]
--->
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
