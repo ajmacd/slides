@@ -41,10 +41,12 @@
     <textarea id="source">
 
 class: center, middle
+.center[<img src="slack_rgb.png" alt="Slack logo" style="width: 300px;"/>]
 
-# Cross-platform C++ and WebRTC
+# Cross-platform C++ development and WebRTC
 
-.center[<img src="c-seeklogo.com.svg" alt="C++ logo" style="width: 60px;"/> <img src="webrtc-logo-vert-retro-dist.svg" alt="WebRTC logo" style="width: 60px;"/>]
+.center[<img src="c-seeklogo.com.svg" alt="C++ logo" style="width: 50px;"/> <img src="webrtc-logo-vert-retro-dist.svg" alt="WebRTC logo" style="width: 50px;"/>]
+
 
 ???
 * Experiences with shipping a cross-platform webrtc product and things we've learnd.
@@ -55,13 +57,21 @@ class: center, middle
 
 ???
 * All media traffic passes through our media server, even in 1:1 calls.
+
 * Focus is on group calling. We want to encourage group calls and assume any 1:1 call could be upgraded.
+
 * Smooth handover from p2p to server based call is hard.
+
 * However, there are clear user benefits in some contexts; someone WFH in the same city as their office for example.
+
 * We want to adopt this eventually.
+
 * Starting a call: client contacts region server to discover which media server they'll be closest to.
+
 * Call state is stored in Slack's DB. Client talks to the REST API to create/join calls. Returns the media server to talk to and IDs.
+
 * After that, all signalling passes through the media server.
+
 * Some Slack client updates come via the RTM API.
 ---
 
@@ -80,7 +90,9 @@ class: center, middle
 
 ???
 * I want to focus on cross-platform client development today.
+
 * I'm also assuming you've rolled your own webrtc binaries, referring to that as native webrtc.
+
 * Super simplified client stack: break it down into three components.
 
 ---
@@ -97,11 +109,14 @@ class: center, middle
 ## A bit of history
 
 Audio calls in the Slack Mac native app.
-* Based on MacGap, a WebKit wrapper, used as a single-site browser to run the Slack webapp.
+* Based on MacGap, a WebKit wrapper.
 
 * But! No access to WebRTC.
-???
 
+???
+* Based on MacGap, a WebKit wrapper, used as a single-site browser container to run the Slack webapp.
+
+* No webrtc, so we needed to roll our own webrtc binaries.
 
 ---
 
@@ -120,8 +135,10 @@ Browser and Desktop implementations were developed together.
 .left[<img src="client-stack-desktop-highlight.svg" alt="Client stack" style="width: 480;"/>]
 
 ???
-* This meant the application logic was spread across JS and C++.
-* API was pretty low-level. A few methods, passing JSON messages directly from our media server.
+* Because the two were developed in tandem by the same team, the application logic ended up being spread across JS and C++.
+
+* API was pretty low-level. A few weakly-typed methods, passing JSON messages directly from our media server.
+
 * This worked fine for desktop. Our team was handling much of the development.
 
 ---
@@ -134,7 +151,10 @@ Trouble appeared as we expanded to mobile.
 
 ???
 * Platform developers had to reimplement domain-specific application logic.
+
 * A lot of parsing raw JSON messages from the media server.
+
+* We launched on mobile in this state, but it slowed progress. And adding features later would continue to be costly.
 
 ---
 
@@ -142,17 +162,22 @@ Trouble appeared as we expanded to mobile.
 
 What is the ideal cross-platform design?
 
-**Write-once, run-anywhere**
+**Write-once, run-anywhere.**
+
+**Provide a natural API to platform developers.**
+
+???
+* So, after launch, decided to reimagine the approach.
 
 * Consolidates features (and bugs) in one place.
 
 * Insulates platform developers from details they shouldn't care about.
 
-**Provide a natural API**
-
 * Choose the right level of abstraction.
 
 * Platform-specific language bindings to make it natural to use.
+
+* Strongly typed, to move a certain class of errors from run-time to compile-timer errors.
 
 ---
 
@@ -160,20 +185,26 @@ What is the ideal cross-platform design?
 
 .left[<img src="client-stack-mobile-now.svg" alt="Client stack" style="width: 745px;"/>]
 
+???
+
+* With this, we would consolidate application logic solidly in one layer.
+
 ---
 
 ## Our selection
 
 Application logic in modern C++...
-* The native WebRTC libs are C++.
+* Native WebRTC libs are C++.
 
-* C++11 is a fairly painless experience (occasionally delightful!).
+* C++11 is a fairly painless experience.
 
 ...with an API written in [Dropbox's Djinni](https://github.com/dropbox/djinni).
-
 * Uses a simple interface definition language.
 
-* Generates cross-platform bindings for Java and Obj-C <-> C++.
+* Generates bindings for Java and Obj-C <-> C++.
+
+???
+* Handles all data marshalling between languages.
 
 ---
 
@@ -183,13 +214,20 @@ RPC frameworks
 
 * [GRPC](http://www.grpc.io/)
 
-Offers cross-platform API generation (even JavaScript!)
+`+` Offers cross-platform API generation.
 
-Isn't a great fit for the domain: not designed for running in process (maybe GRPC?).
+`-` Isn't a great fit for the domain.
+
+???
+* Offers cross-platform API generation, even for JavaScript.
+
+* Not designed for running in process, maybe GRPC?
+
+* Thrift especially is pretty heavy-weight. There's an Microsoft project called Thrify intended for Android that reduces the number of classes it generates.
 
 ---
 
-Djinni IDL
+### Djinni IDL
 ```python
 session = interface +c {
   static create(observer : session_observer,
@@ -223,11 +261,14 @@ public abstract class Session {
 
 ???
 * Here is the Djinni interface definition language. Very easy to use. Generates Java and Obj-C.
-* Handles all the marshalling. For anyone who's written JNI by hand you know.
+
+* These are just the interfaces, with a bunch of intermediate generated code to handle the data marshalling.
+
+* For anyone who's written JNI by hand, you can imagine how nice this is.
 
 ---
 
-Djinni IDL
+###Djinni IDL
 ```python
 session_observer = interface +o +j {
   # Called when the client has finished joining the room, in response to
@@ -253,7 +294,14 @@ public:
 ```
 ---
 
-`$ wc -l`
+## `$ wc -l`
+
+Djinni generated &gt;5k lines of code for us.
+
+???
+* At current count, Djinni generated more than 5k lines of boilerplate code for us.
+
+* More importantly, we don't have to sift through all of that when we make a change.
 
 ---
 
@@ -286,14 +334,16 @@ peer_event = enum {
 
 ???
 * Probably obvious in retrospect, but it became very clear that we should base the API around UI events.
-* There will be layout differences of course, but the essential calls UI elements are retained on all platforms.
-* It's a very natural way for the platform developers to interact with the library: a user takes a certain action and it results in me calling method X. My observer has method Y called which results in a UI update.
+
+* There will be layout differences of course, but the essential calling UI elements are retained on all platforms.
+
+* It's a very natural way for the platform developers to interact with the library: a user takes a certain action and it results in me calling a library method. The library's callback observer has a method called which results in a UI update.
 
 ---
 
 ## Lessons learned
 
-Threading model
+**Threading model**
 
 Assume the UI thread is hitting the library.
 
@@ -314,11 +364,12 @@ void SessionImpl::SyncLeaveRoom() {
   ...
 }
 ```
-JVM gets upset when accessed by non-Java created threads. Use a thread launcher.
+JVM gets upset when accessed by non-Java created threads.
 
-??
-* Make all heavy methods asynchronous. We decided to make _all_ methods async to make the threading model easier: all methods are posted to a single background thread.
-* Use a thread launcher.
+???
+* Make all heavy methods asynchronous. We decided to make _all_ methods async to make the threading model easier: all top-layer methods are posted to a single background thread.
+
+* Create platform-specific threads.
 
 ---
 
@@ -327,14 +378,30 @@ JVM gets upset when accessed by non-Java created threads. Use a thread launcher.
 **mx3**: Example project showing Djinni best practices.
 https://github.com/libmx3/mx3
 
-**Mobile CPP Slack community team**: A good place for questions.
+**Mobile C++ Slack community team**: A good place for questions.
 https://mobilecpp.slack.com
 
-??
+???
 * mx3: has implementations of useful objects like platform-specific UI thread event loops and thread launchers.
-* The mobile c++ slack community team is fairly active, including some Dropbox developers who worked on Djinni. Good place to get your questions answered.
+
+* The mobile C++ slack community team is fairly active, including some Dropbox developers who worked on Djinni. Good place to get your questions answered.
+
 ---
 
+## Case study: reconnection logic
+
+Call survey results for Android client
+
+.left[<img src="android-survey-results.png" alt="Android survey results" style="width: 750px;"/>]
+
+???
+* Version 2.19 of the Android client included the new library which consolidated logic.
+
+* Unintended consequence: we saw the rate of disconnects drop significantly and the approval or "ok" rating climb.
+
+* I attribute this to implementing the logic on our team, who very well understood the requirements.
+
+---
 
 ## Two alternative architectures
 
@@ -351,20 +418,24 @@ Do you have a WebRTC web app, and are building mobile apps?
 
 ---
 
-## Case study
+## But, you still have to write it twice!
 
-[Reconnection logic, placeholder]
+.left[<img src="client-stack-mobile-now.svg" alt="Client stack" style="width: 745px;"/>]
 
 ---
 
 ## But, you still have to write it twice!
-We have a plan (sort of): [Emscripten](https://kripken.github.io/emscripten-site/)
 
 .left[<img src="client-stack-emscripten.svg" alt="Client stack" style="width: 745px;"/>]
 
+We have a plan (sort of): [Emscripten](https://kripken.github.io/emscripten-site/)
+
 ???
 * Emscripten is a C++ to JS transpiler.
+
 * We have some patches to Djinni that will produce Emscripten bindings.
+
+* Not developed yet, but if we end up doing this, I'm sure we'll write a blog post or something. So stay tuned.
 
 ---
 
