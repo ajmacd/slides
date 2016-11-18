@@ -5,37 +5,68 @@
     <meta charset="utf-8">
     <link rel="stylesheet" href="../font-awesome/css/font-awesome.min.css">
     <style>
-      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+      @import url('https://fonts.googleapis.com/css?family=Lato:400,400i,700|Ubuntu+Mono:400,400i,700');
 
       body {
-          font-family: 'Lato';
+        font-family: 'Lato', sans-serif;
+        color: #222222;
       }
       h1, h2, h3 {
-        font-family: 'Lato';
+        font-family: 'Lato', sans-serif;
         font-weight: bold;
       }
       .remark-slide-content { font-size: 24px; }
-      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+      .remark-code, .remark-inline-code {
+        font-family: 'Ubuntu Mono', monospace;
+      }
       a, a > code {
         color: rgb(249, 38, 114);
         text-decoration: none;
       }
-
-      .left-column {
-        color: #777;
-        width: 20%;
-        height: 92%;
-        float: left;
-      }
-        .left-column h2:last-of-type, .left-column h3:last-child {
-          color: #000;
-        }
-      .right-column {
-        width: 75%;
-        float: right;
-        padding-top: 1em;
-      }
     </style>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	<script type="text/javascript">
+        google.charts.load("current", {packages:["corechart"]});
+        google.charts.setOnLoadCallback(drawChart);
+        function drawChart() {
+            var data = google.visualization.arrayToDataTable([
+              ['Survey response', '2.18', '2.19'],
+              ['Disconnect', 19.9, 9.7],
+              ['OK', 64.4, 78.8],
+            ]);
+
+          var view = new google.visualization.DataView(data);
+          var options = {
+              width: 750,
+              height: 400
+          };
+          var chart = new google.visualization.BarChart(document.getElementById("android_survey_results"));
+          chart.draw(view, options);
+        }
+    </script>
+    <!--
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['bar']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Survey response', '2.18', '2.19'],
+          ['Disconnect', 19.9, 9.7],
+          ['OK', 64.4, 78.8],
+        ]);
+
+        var options = {
+          width: 800,
+          height: 400,
+        };
+
+        var chart = new google.charts.Bar(document.getElementById('android_survey_results'));
+
+        chart.draw(data, options);
+      }
+    </script>
+    -->
+
   </head>
   <body>
     <textarea id="source">
@@ -58,14 +89,6 @@ class: center, middle
 ???
 * All media traffic passes through our media server, even in 1:1 calls.
 
-* Focus is on group calling. We want to encourage group calls and assume any 1:1 call could be upgraded.
-
-* Smooth handover from p2p to server based call is hard.
-
-* However, there are clear user benefits in some contexts; someone WFH in the same city as their office for example.
-
-* We want to adopt this eventually.
-
 * Starting a call: client contacts region server to discover which media server they'll be closest to.
 
 * Call state is stored in Slack's DB. Client talks to the REST API to create/join calls. Returns the media server to talk to and IDs.
@@ -73,6 +96,7 @@ class: center, middle
 * After that, all signalling passes through the media server.
 
 * Some Slack client updates come via the RTM API.
+
 ---
 
 ## Platforms
@@ -150,11 +174,20 @@ Trouble appeared as we expanded to mobile.
 .left[<img src="client-stack-mobile-then.svg" alt="Client stack" style="width: 745px;"/>]
 
 ???
-* Platform developers had to reimplement domain-specific application logic.
+* Some application logic had to be rewritten in client code.
 
 * A lot of parsing raw JSON messages from the media server.
 
 * We launched on mobile in this state, but it slowed progress. And adding features later would continue to be costly.
+
+---
+
+## A bit of history
+
+.center[<img src="teams-divided.svg" alt="Client stack" style="width: 600;"/>]
+
+???
+* To take another view of it, the calls team is vending our C++ library to the client teams. But we were forcing them to reimplement some of our logic.
 
 ---
 
@@ -191,6 +224,15 @@ What is the ideal cross-platform design?
 
 ---
 
+## A bit of history
+
+.center[<img src="teams-unified.svg" alt="Client stack" style="width: 600;"/>]
+
+???
+* Or, again in the teams view, have the logic implemented by the Calls team.
+
+---
+
 ## Our selection
 
 Application logic in modern C++...
@@ -204,6 +246,8 @@ Application logic in modern C++...
 * Generates bindings for Java and Obj-C <-> C++.
 
 ???
+* Whatever we choose, we're going to have to communicate with C++.
+
 * Handles all data marshalling between languages.
 
 ---
@@ -388,18 +432,18 @@ https://mobilecpp.slack.com
 
 ---
 
-## Case study: reconnection logic
+## Case study
 
 Call survey results for Android client
-
-.left[<img src="android-survey-results.png" alt="Android survey results" style="width: 750px;"/>]
+.left[<div id="android_survey_results"></div>]
+<!--.left[<img src="android-survey-results.png" alt="Android survey results" style="width: 750px;"/>]-->
 
 ???
 * Version 2.19 of the Android client included the new library which consolidated logic.
 
 * Unintended consequence: we saw the rate of disconnects drop significantly and the approval or "ok" rating climb.
 
-* I attribute this to implementing the logic on our team, who very well understood the requirements.
+* I attribute this to implementation of the logic by our team, who well understood the requirements. We didn't have to communicate tricky requirements to another team.
 
 ---
 
@@ -455,9 +499,11 @@ Write once in Java and transpile to JavaScript and Obj-C.
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
     </script>
     <script>
+
 var slideshow = remark.create({
    highlightStyle: 'solarized-light'
 });
+
     </script>
   </body>
 </html>
